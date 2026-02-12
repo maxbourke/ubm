@@ -176,13 +176,10 @@ def cmd_search(conn, args):
     results = search.search_bookmarks(conn, options)
 
     # Display results
-    print(f"Found {total} result(s):\n")
+    showing = min(args.limit, len(results))
+    print(f"Searched for: {args.query}")
+    print(f"Showing {showing} of {total} results\n")
     print(display.format_list(results, show_source=True, full=args.full, show_ids=args.show_ids))
-
-    # Show pagination info
-    if total > len(results):
-        showing = min(args.limit, len(results))
-        print(f"\n(Showing {showing} of {total} results)")
 
 
 def cmd_list(conn, args):

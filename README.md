@@ -1,6 +1,6 @@
 # UBM - Universal Bookmarks Manager
 
-A fast, standalone CLI tool for searching and retrieving bookmarks from multiple sources. Currently supports Twitter bookmarks with extensible design for Chrome, Firefox, and other sources.
+A fast, standalone CLI tool for searching and retrieving bookmarks from multiple sources. Currently supports Twitter bookmarks (via [twitter-web-exporter](https://github.com/prinsss/twitter-web-exporter)) with extensible design for Chrome, Firefox, and other sources.
 
 ## Features
 
@@ -171,7 +171,9 @@ The database is automatically created on first run. You can backup this single f
 
 ## Twitter Bookmark Format
 
-UBM expects Twitter bookmark JSON files exported from Twitter/X. The format should be an array of tweet objects with fields like:
+**Note**: Currently, UBM only works with Twitter bookmarks. Use [twitter-web-exporter](https://github.com/prinsss/twitter-web-exporter) to download your Twitter/X bookmarks as JSON files.
+
+UBM expects Twitter bookmark JSON files in the format exported by twitter-web-exporter. The format should be an array of tweet objects with fields like:
 
 ```json
 [
