@@ -207,12 +207,81 @@ UBM is designed to support multiple bookmark sources. The data model uses:
 - **Flexible schema**: Common fields (url, content, created_at) + source-specific metadata in JSON blob
 - **Source-agnostic search**: FTS5 index works across all sources
 
-To add a new source:
+### Adding a New Importer
 
-1. Add importer function in `ubm/importer.py`
-2. Map source fields to canonical schema
-3. Set `source_type` appropriately
-4. Store source-specific data in `metadata_json`
+The importer uses a simple registry pattern. To add support for a new bookmark source (e.g., Chrome):
+
+**1. Add a detector function** in `ubm/importer.py`:
+
+```python
+def _detect_chrome_format(file_path: Path) -> bool:
+    """Check if file matches Chrome bookmark export format."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            # Check for Chrome-specific structure
+            return 'roots' in data and 'bookmark_bar' in data.get('roots', {})
+    except (json.JSONDecodeError, KeyError, IOError):
+        return False
+    return False
+```
+
+**2. Add an importer function**:
+
+```python
+def _import_chrome_json(file_path: Path, conn: sqlite3.Connection, dry_run: bool = False) -> ImportStats:
+    """Import Chrome bookmarks from JSON file."""
+    # Parse Chrome bookmark file
+    bookmarks = _parse_chrome_bookmarks(file_path)
+
+    # Transform to canonical schema
+    transformed = []
+    for bm in bookmarks:
+        transformed.append({
+            'id': bm['id'],  # or generate from URL hash
+            'source_type': 'chrome',
+            'source_file': str(file_path),
+            'imported_at': datetime.now().isoformat(),
+            'created_at': bm.get('date_added'),
+            'title': bm.get('name'),
+            'url': bm['url'],
+            'content': bm.get('name', ''),  # Chrome has no content
+            'author_handle': None,
+            'author_name': None,
+            'metadata_json': json.dumps({'folder': bm.get('folder')})
+        })
+
+    # Use shared insert logic (similar to _import_twitter_json)
+    # ... bulk insert with deduplication ...
+```
+
+**3. Register in the dictionaries**:
+
+```python
+IMPORT_FUNCTIONS = {
+    'twitter': _import_twitter_json,
+    'chrome': _import_chrome_json,  # Add this
+}
+
+DETECTORS = {
+    'twitter': _detect_twitter_format,
+    'chrome': _detect_chrome_format,  # Add this
+}
+```
+
+**4. Update CLI choices** in `ubm.py`:
+
+```python
+import_parser.add_argument('--type', dest='source_type',
+                          choices=['twitter', 'chrome'],  # Add 'chrome'
+                          help='Bookmark source type (auto-detected if not specified)')
+```
+
+That's it! The new importer will:
+- Auto-detect when importing files
+- Work with `ubm import --type chrome file.json`
+- Show up in stats with `ubm stats`
+- Be fully searchable alongside other sources
 
 ## Troubleshooting
 

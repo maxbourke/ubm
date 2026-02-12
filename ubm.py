@@ -36,7 +36,9 @@ def main():
 
     # Import command
     import_parser = subparsers.add_parser('import', help='Import bookmarks from file')
-    import_parser.add_argument('file', type=Path, help='Path to bookmark file (Twitter JSON)')
+    import_parser.add_argument('file', type=Path, help='Path to bookmark file')
+    import_parser.add_argument('--type', dest='source_type', choices=['twitter'],
+                              help='Bookmark source type (auto-detected if not specified)')
     import_parser.add_argument('--dry-run', action='store_true',
                               help='Preview import without writing to database')
 
@@ -130,7 +132,11 @@ def cmd_import(conn, args):
     start_time = time.time()
 
     try:
-        stats = importer.import_twitter_json(args.file, conn, dry_run=args.dry_run)
+        stats = importer.import_bookmarks(
+            args.file, conn,
+            source_type=getattr(args, 'source_type', None),
+            dry_run=args.dry_run
+        )
         elapsed = time.time() - start_time
 
         print(display.format_import_result(stats, str(args.file), elapsed))

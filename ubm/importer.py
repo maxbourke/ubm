@@ -17,7 +17,29 @@ class ImportStats:
     errors: int = 0
 
 
-def import_twitter_json(
+def _detect_twitter_format(file_path: Path) -> bool:
+    """Check if file matches twitter-web-exporter format.
+
+    Args:
+        file_path: Path to file to check
+
+    Returns:
+        True if file appears to be twitter-web-exporter format
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if isinstance(data, list) and len(data) > 0:
+                # Check for twitter-specific fields in first bookmark
+                first = data[0]
+                required_fields = ['id', 'full_text', 'screen_name', 'url']
+                return all(field in first for field in required_fields)
+    except (json.JSONDecodeError, KeyError, IOError):
+        return False
+    return False
+
+
+def _import_twitter_json(
     file_path: Path,
     conn: sqlite3.Connection,
     dry_run: bool = False
@@ -208,3 +230,111 @@ def get_import_history(conn: sqlite3.Connection, limit: int = 10) -> List[Dict]:
     """, (limit,))
 
     return [dict(row) for row in cursor.fetchall()]
+
+
+# Importer registry - maps source types to import functions
+IMPORT_FUNCTIONS = {
+    'twitter': _import_twitter_json,
+    # Future: 'chrome': _import_chrome_json,
+    # Future: 'firefox': _import_firefox_json,
+}
+
+# Detector registry - maps source types to detector functions
+DETECTORS = {
+    'twitter': _detect_twitter_format,
+    # Future: 'chrome': _detect_chrome_format,
+    # Future: 'firefox': _detect_firefox_format,
+}
+
+
+def detect_source_type(file_path: Path) -> str:
+    """Auto-detect bookmark source type from file content.
+
+    Args:
+        file_path: Path to bookmark file
+
+    Returns:
+        Source type string ('twitter', 'chrome', etc.)
+
+    Raises:
+        ValueError: If source type cannot be detected
+    """
+    for source_type, detector_fn in DETECTORS.items():
+        if detector_fn(file_path):
+            return source_type
+
+    raise ValueError(
+        f"Could not detect bookmark format for: {file_path}\n"
+        f"Supported formats: {', '.join(DETECTORS.keys())}"
+    )
+
+
+def import_bookmarks(
+    file_path: Path,
+    conn: sqlite3.Connection,
+    source_type: Optional[str] = None,
+    dry_run: bool = False
+) -> ImportStats:
+    """Import bookmarks from file with auto-detection support.
+
+    This is the main public API for importing bookmarks. It supports
+    auto-detection of source type or explicit specification.
+
+    Args:
+        file_path: Path to bookmark file
+        conn: Database connection
+        source_type: Explicit source type ('twitter', 'chrome', etc.)
+                    or None for auto-detection
+        dry_run: If True, parse but don't write to database
+
+    Returns:
+        ImportStats with count of total, new, and duplicate bookmarks
+
+    Raises:
+        ValueError: If source type is unknown or file format is invalid
+        FileNotFoundError: If file doesn't exist
+    """
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    # Auto-detect if not specified
+    if source_type is None:
+        source_type = detect_source_type(file_path)
+
+    # Get import function for this source type
+    import_fn = IMPORT_FUNCTIONS.get(source_type)
+    if not import_fn:
+        supported = ', '.join(IMPORT_FUNCTIONS.keys())
+        raise ValueError(
+            f"Unsupported source type '{source_type}'. "
+            f"Supported types: {supported}"
+        )
+
+    # Delegate to source-specific importer
+    return import_fn(file_path, conn, dry_run)
+
+
+# Legacy public API - kept for backward compatibility
+def import_twitter_json(
+    file_path: Path,
+    conn: sqlite3.Connection,
+    dry_run: bool = False
+) -> ImportStats:
+    """Import Twitter bookmarks from JSON file.
+
+    Legacy function - prefer using import_bookmarks() instead.
+    Kept for backward compatibility.
+
+    Args:
+        file_path: Path to Twitter bookmark JSON file
+        conn: Database connection
+        dry_run: If True, parse but don't write to database
+
+    Returns:
+        ImportStats with count of total, new, and duplicate bookmarks
+
+    Raises:
+        ValueError: If file is not valid JSON or missing required fields
+        FileNotFoundError: If file doesn't exist
+    """
+    return _import_twitter_json(file_path, conn, dry_run)
