@@ -161,15 +161,22 @@ ubm sources --limit 20
 
 ## Data Location
 
-All data is stored in:
+By default, UBM stores its database in your home directory:
 
 ```
-/Users/maxbourke/Code/ubm/data/ubm.db
+~/.ubm/ubm.db
+```
+
+**Custom Location**: Set the `UBM_DB_PATH` environment variable to use a different location:
+
+```bash
+export UBM_DB_PATH=/custom/path/ubm.db
+ubm stats  # Will use custom path
 ```
 
 The database is automatically created on first run. You can backup this single file to preserve all your bookmarks.
 
-## Twitter Bookmark Format
+## Current Bookmark Formats: Twitter only
 
 **Note**: Currently, UBM only works with Twitter bookmarks. Use [twitter-web-exporter](https://github.com/prinsss/twitter-web-exporter) to download your Twitter/X bookmarks as JSON files.
 
@@ -289,7 +296,7 @@ That's it! The new importer will:
 
 If you get "database is locked" errors:
 - Close any other programs accessing the database
-- The database is located at `/Users/maxbourke/Code/ubm/data/ubm.db`
+- The database is located at `~/.ubm/ubm.db` (or `$UBM_DB_PATH` if set)
 
 ### Import errors
 
@@ -312,13 +319,13 @@ If imports fail:
 ```
 ubm/
 ├── ubm.py              # CLI entry point
-├── ubm/
-│   ├── db.py          # Database layer
-│   ├── importer.py    # Import logic
-│   ├── search.py      # Search queries
-│   └── display.py     # Output formatting
-└── data/
-    └── ubm.db         # SQLite database
+└── ubm/
+    ├── db.py          # Database layer
+    ├── importer.py    # Import logic
+    ├── search.py      # Search queries
+    └── display.py     # Output formatting
+
+Database: ~/.ubm/ubm.db (or $UBM_DB_PATH if set)
 ```
 
 ### Requirements

@@ -1,18 +1,22 @@
 """Database layer for UBM - schema, connections, and migrations."""
 
+import os
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
 
-DEFAULT_DB_PATH = Path.home() / "Code" / "ubm" / "data" / "ubm.db"
+# Database path: configurable via environment variable
+# Default: ~/.ubm/ubm.db (portable, works on all platforms)
+# Override: Set UBM_DB_PATH=/custom/path/ubm.db
+DEFAULT_DB_PATH = Path(os.getenv('UBM_DB_PATH', str(Path.home() / '.ubm' / 'ubm.db')))
 
 
 def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """Get database connection, initialising schema if needed.
 
     Args:
-        db_path: Path to database file (default: ~/Code/ubm/data/ubm.db)
+        db_path: Path to database file (default: ~/.ubm/ubm.db or $UBM_DB_PATH)
 
     Returns:
         SQLite connection object
