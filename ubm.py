@@ -89,6 +89,7 @@ def main():
         sys.exit(0)
 
     # Get database connection (auto-initialises on first run)
+    conn = None
     try:
         conn = db.get_connection()
     except Exception as e:
@@ -120,7 +121,8 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 def cmd_import(conn, args):
