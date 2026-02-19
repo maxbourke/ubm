@@ -9,6 +9,7 @@
 A fast CLI tool for searching and retrieving bookmarks from multiple sources.
 
 Usage:
+    ubm x                               # Quick import: latest twitter-Bookmarks-*.json from ~/Downloads
     ubm import <file>                   # Import Twitter bookmark JSON
     ubm search <query>                  # Search bookmarks
     ubm list                            # List recent bookmarks
@@ -41,6 +42,11 @@ def main():
                               help='Bookmark source type (auto-detected if not specified)')
     import_parser.add_argument('--dry-run', action='store_true',
                               help='Preview import without writing to database')
+
+    # Quick import command (x = eXpress import)
+    x_parser = subparsers.add_parser('x', help='Quick import: latest twitter-Bookmarks-*.json from ~/Downloads')
+    x_parser.add_argument('--dry-run', action='store_true',
+                          help='Preview import without writing to database')
 
     # Search command
     search_parser = subparsers.add_parser('search', help='Search bookmarks')
@@ -102,6 +108,8 @@ def main():
     try:
         if args.command == 'import':
             cmd_import(conn, args)
+        elif args.command == 'x':
+            cmd_x(conn, args)
         elif args.command == 'search':
             cmd_search(conn, args)
         elif args.command == 'list':
@@ -147,6 +155,43 @@ def cmd_import(conn, args):
 
     except FileNotFoundError:
         print(f"Error: File not found: {args.file}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_x(conn, args):
+    """Quick import: most recent Twitter bookmarks from ~/Downloads."""
+    start_time = time.time()
+
+    downloads = Path.home() / 'Downloads'
+    twitter_files = sorted(downloads.glob('twitter-Bookmarks-*.json'),
+                          key=lambda p: p.stat().st_mtime, reverse=True)
+
+    if not twitter_files:
+        print("Error: No twitter-Bookmarks-*.json files found in ~/Downloads", file=sys.stderr)
+        sys.exit(1)
+
+    file_path = twitter_files[0]
+    print(f"Found: {file_path.name}")
+
+    try:
+        stats = importer.import_bookmarks(
+            file_path, conn,
+            source_type='twitter',
+            dry_run=args.dry_run
+        )
+        elapsed = time.time() - start_time
+
+        print(display.format_import_result(stats, str(file_path), elapsed))
+
+        if stats.errors > 0:
+            print(f"\nWarning: {stats.errors} bookmark(s) had errors and were skipped",
+                  file=sys.stderr)
+
+    except FileNotFoundError:
+        print(f"Error: File not found: {file_path}", file=sys.stderr)
         sys.exit(1)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)

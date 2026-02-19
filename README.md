@@ -26,7 +26,10 @@ ln -s "$(pwd)/ubm.py" ~/bin/ubm
 ## Quick Start
 
 ```bash
-# Import Twitter bookmarks
+# Quick import: latest Twitter bookmarks from ~/Downloads
+ubm x
+
+# Import Twitter bookmarks from specific file
 ubm import /path/to/twitter-Bookmarks-xxx.json
 
 # Search for bookmarks
@@ -47,9 +50,23 @@ ubm stats
 
 ## Commands
 
+### Quick Import (x)
+
+Fast import of the most recent Twitter bookmarks download:
+
+```bash
+# Import latest twitter-Bookmarks-*.json from ~/Downloads
+ubm x
+
+# Preview without importing
+ubm x --dry-run
+```
+
+This command automatically finds the most recent `twitter-Bookmarks-*.json` file in your Downloads folder and imports it. Perfect for quickly importing fresh exports from twitter-web-exporter.
+
 ### Import
 
-Import Twitter bookmark JSON files:
+Import Twitter bookmark JSON files from a specific path:
 
 ```bash
 # Import bookmarks
