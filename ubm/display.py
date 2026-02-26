@@ -71,11 +71,12 @@ def format_list(bookmarks: List[Dict], show_source: bool = False, full: bool = F
     return '\n'.join(lines)
 
 
-def format_show(bookmark: Dict) -> str:
+def format_show(bookmark: Dict, categories: List[Dict] = None) -> str:
     """Format a single bookmark with full details.
 
     Args:
         bookmark: Bookmark dictionary
+        categories: Optional list of assigned categories with confidence
 
     Returns:
         Formatted string with full bookmark details
@@ -116,6 +117,11 @@ def format_show(bookmark: Dict) -> str:
 
     # URL
     lines.append(f"URL: {bookmark['url']}")
+
+    # Categories
+    if categories:
+        cat_strings = [f"{c['name']} ({c['confidence']:.0%})" for c in categories]
+        lines.append(f"Categories: {', '.join(cat_strings)}")
 
     lines.append("━" * 60)
     lines.append("")
@@ -292,3 +298,129 @@ def _format_number(num: int) -> str:
         Formatted number string
     """
     return f"{num:,}"
+
+
+def format_taxonomy_tree(categories: List[Dict], show_counts: bool = False) -> str:
+    """Format categories as a hierarchical tree.
+
+    Args:
+        categories: List of category dictionaries
+        show_counts: Include bookmark counts per category
+
+    Returns:
+        Formatted tree string
+    """
+    if not categories:
+        return "No categories defined."
+
+    lines = []
+    lines.append("Category Taxonomy")
+    lines.append("━" * 60)
+
+    # Build hierarchy
+    root_categories = [c for c in categories if c.get('parent_id') is None]
+    child_map = {}
+    for cat in categories:
+        parent_id = cat.get('parent_id')
+        if parent_id:
+            if parent_id not in child_map:
+                child_map[parent_id] = []
+            child_map[parent_id].append(cat)
+
+    def format_category(cat: Dict, indent: int = 0) -> None:
+        """Recursively format category and children."""
+        indent_str = "  " * indent
+        icon = "📁" if cat['id'] in child_map else "📄"
+        count_str = ""
+        if show_counts and cat.get('bookmark_count'):
+            count_str = f" ({cat['bookmark_count']})"
+
+        lines.append(f"{indent_str}{icon} {cat['name']}{count_str}")
+
+        if cat.get('description'):
+            lines.append(f"{indent_str}   {cat['description']}")
+
+        # Recursively add children
+        if cat['id'] in child_map:
+            for child in sorted(child_map[cat['id']], key=lambda c: c['name']):
+                format_category(child, indent + 1)
+
+    # Format all root categories
+    for root in sorted(root_categories, key=lambda c: c['name']):
+        format_category(root)
+
+    return '\n'.join(lines)
+
+
+def format_categorisation_stats(stats: Dict) -> str:
+    """Format categorisation statistics.
+
+    Args:
+        stats: Statistics dictionary
+
+    Returns:
+        Formatted statistics string
+    """
+    lines = []
+    lines.append("Categorisation Statistics")
+    lines.append("━" * 40)
+
+    total = stats['total']
+    categorised = stats['categorised']
+    needs_review = stats['needs_review']
+    pending = stats['pending']
+
+    lines.append(f"Total bookmarks: {_format_number(total)}")
+    lines.append(f"  - Categorised: {_format_number(categorised)} ({100*categorised/total:.1f}%)")
+    lines.append(f"  - Needs review: {_format_number(needs_review)} ({100*needs_review/total:.1f}%)")
+    lines.append(f"  - Pending: {_format_number(pending)} ({100*pending/total:.1f}%)")
+    lines.append(f"")
+    lines.append(f"Categories: {stats['category_count']}")
+    lines.append(f"Average confidence: {stats['avg_confidence']:.2f}")
+    lines.append(f"Items needing review: {_format_number(stats['review_count'])}")
+
+    return '\n'.join(lines)
+
+
+def format_review_items(items: List[Dict]) -> str:
+    """Format review queue items.
+
+    Args:
+        items: List of categorisation_log entries
+
+    Returns:
+        Formatted review queue
+    """
+    if not items:
+        return "No items need review."
+
+    lines = []
+    lines.append("Items Needing Review")
+    lines.append("━" * 60)
+
+    # Group by event type
+    by_type = {}
+    for item in items:
+        event_type = item['event_type']
+        if event_type not in by_type:
+            by_type[event_type] = []
+        by_type[event_type].append(item)
+
+    for event_type, type_items in by_type.items():
+        lines.append(f"\n{event_type.upper().replace('_', ' ')} ({len(type_items)} items)")
+        lines.append("-" * 60)
+
+        for item in type_items[:10]:  # Show first 10 per type
+            lines.append(f"Bookmark: {item['bookmark_id']}")
+            if item.get('message'):
+                lines.append(f"  Message: {item['message']}")
+            if item.get('suggested_category'):
+                lines.append(f"  Suggestion: {item['suggested_category']}")
+            if item.get('confidence'):
+                lines.append(f"  Confidence: {item['confidence']:.2f}")
+            lines.append("")
+
+        if len(type_items) > 10:
+            lines.append(f"...and {len(type_items) - 10} more\n")
+
+    return '\n'.join(lines)

@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 from typing import Optional
 
+from . import migrations
+
 
 # Database path: configurable via environment variable
 # Default: ~/.ubm/ubm.db (portable, works on all platforms)
@@ -37,6 +39,9 @@ def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     # Initialise schema if new database
     if is_new_db:
         init_schema(conn)
+
+    # Run pending migrations
+    migrations.run_migrations(conn)
 
     return conn
 

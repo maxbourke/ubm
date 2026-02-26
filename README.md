@@ -5,8 +5,9 @@ A fast, standalone CLI tool for searching and retrieving bookmarks from multiple
 ## Features
 
 - **Fast Search**: SQLite FTS5 full-text search with BM25 ranking
+- **AI-Powered Categorisation**: Automatically categorise bookmarks using LLMs (see [CATEGORISER.md](CATEGORISER.md))
 - **Source-Agnostic**: Designed to handle bookmarks from multiple platforms
-- **Zero Dependencies**: Pure Python with built-in SQLite
+- **Zero Dependencies**: Pure Python with built-in SQLite (except OpenRouter for categorisation)
 - **Automatic Deduplication**: Safe to re-import the same files
 - **Simple CLI**: Intuitive commands for import, search, and browsing
 
@@ -46,7 +47,15 @@ ubm show 1234567890123456789
 
 # View statistics
 ubm stats
+
+# AI Categorisation (requires OPENROUTER_API_KEY)
+ubm categorise init --sample-size 500           # Generate hierarchical taxonomy
+ubm categorise run --limit 100 --rate-limit 0  # Fast categorisation (paid API)
+ubm categorise run --two-call                   # Experimental: free-form + ontology
+ubm categorise stats                            # View progress
 ```
+
+See [CATEGORISER.md](CATEGORISER.md) and [CATEGORISER_ENHANCEMENTS.md](CATEGORISER_ENHANCEMENTS.md) for detailed documentation.
 
 ## Commands
 
@@ -175,6 +184,33 @@ ubm sources
 # Show more history
 ubm sources --limit 20
 ```
+
+### Categorise
+
+AI-powered bookmark categorisation with hierarchical taxonomy. See [CATEGORISER.md](CATEGORISER.md) for full documentation.
+
+```bash
+# Generate taxonomy from sample
+ubm categorise init --sample-size 500 --strategy diverse
+
+# Categorise all uncategorised bookmarks
+ubm categorise run
+
+# View statistics
+ubm categorise stats
+
+# Display taxonomy tree
+ubm categorise list --counts
+
+# Review edge cases
+ubm categorise review
+```
+
+**Requirements**:
+- Set `OPENROUTER_API_KEY` environment variable
+- Recommended models: `anthropic/claude-3.5-sonnet` or free tier alternatives
+
+**Note**: Full categorisation of 15K bookmarks takes ~20-25 hours but is resumable if interrupted.
 
 ## Data Location
 
