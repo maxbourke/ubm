@@ -14,8 +14,9 @@ A fast, standalone CLI tool for searching and retrieving bookmarks from multiple
 ## Installation
 
 ```bash
-# Clone or navigate to the project
-cd /Users/maxbourke/Code/ubm
+# Clone the repository
+git clone https://github.com/maxbourke/ubm.git
+cd ubm
 
 # Make executable
 chmod +x ubm.py
@@ -211,6 +212,8 @@ ubm categorise review
 - Recommended models: `anthropic/claude-3.5-sonnet` or free tier alternatives
 
 **Note**: Full categorisation of 15K bookmarks takes ~20-25 hours but is resumable if interrupted.
+
+> **Status**: The categorisation feature is functional but has not yet been fully user-tested beyond the initial development environment. Core search and import features are stable.
 
 ## Data Location
 
