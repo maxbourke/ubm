@@ -1,15 +1,17 @@
 # UBM - Universal Bookmarks Manager
 
-A fast, standalone CLI tool for searching and retrieving bookmarks from multiple sources. Currently supports Twitter bookmarks (via [twitter-web-exporter](https://github.com/prinsss/twitter-web-exporter)) with extensible design for Chrome, Firefox, and other sources.
+A fast, agent friendly standalone CLI tool for searching and retrieving bookmarks from multiple sources. Currently supports Twitter bookmarks (via [twitter-web-exporter](https://github.com/prinsss/twitter-web-exporter)) with extensible design for other sources.
 
 ## Features
 
 - **Fast Search**: SQLite FTS5 full-text search with BM25 ranking
-- **AI-Powered Categorisation**: Automatically categorise bookmarks using LLMs (see [CATEGORISER.md](CATEGORISER.md))
-- **Source-Agnostic**: Designed to handle bookmarks from multiple platforms
 - **Zero Dependencies**: Pure Python with built-in SQLite (except OpenRouter for categorisation)
 - **Automatic Deduplication**: Safe to re-import the same files
 - **Simple CLI**: Intuitive commands for import, search, and browsing
+
+## Beta Features
+- **Source-Agnostic**: Designed to handle bookmarks from multiple platforms, currently only twitter-web-exporter module exists.
+- **AI-Powered Categorisation**: Automatically categorise bookmarks using LLMs (see [CATEGORISER.md](CATEGORISER.md)), this is a work in progress and your mileage may vary.
 
 ## Installation
 
@@ -212,8 +214,6 @@ ubm categorise review
 - Recommended models: `anthropic/claude-3.5-sonnet` or free tier alternatives
 
 **Note**: Full categorisation of 15K bookmarks takes ~20-25 hours but is resumable if interrupted.
-
-> **Status**: The categorisation feature is functional but has not yet been fully user-tested beyond the initial development environment. Core search and import features are stable.
 
 ## Data Location
 
