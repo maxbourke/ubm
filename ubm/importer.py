@@ -314,6 +314,177 @@ def import_bookmarks(
     return import_fn(file_path, conn, dry_run)
 
 
+def _import_onetab_data(
+    tabs_data: List[Dict],
+    conn: sqlite3.Connection,
+    dry_run: bool = False
+) -> ImportStats:
+    """Import pre-scraped OneTab tabs into database.
+
+    Args:
+        tabs_data: List of dicts from onetab_scraper.scrape_onetab()
+        conn: Database connection
+        dry_run: If True, parse but don't write to database
+
+    Returns:
+        ImportStats with count of total, new, and duplicate bookmarks
+    """
+    if not tabs_data:
+        return ImportStats(total=0, new=0, duplicates=0)
+
+    # Transform to canonical schema
+    transformed = []
+    errors = 0
+
+    for tab in tabs_data:
+        try:
+            transformed.append(_transform_onetab_bookmark(tab))
+        except (KeyError, ValueError) as e:
+            errors += 1
+            # Continue processing other tabs even if one fails
+
+    if dry_run:
+        return ImportStats(
+            total=len(tabs_data),
+            new=len(transformed),
+            duplicates=0,
+            errors=errors
+        )
+
+    # Bulk insert with deduplication
+    cursor = conn.cursor()
+    new_count = 0
+    duplicate_count = 0
+
+    for record in transformed:
+        try:
+            cursor.execute("""
+                INSERT INTO bookmarks (
+                    id, source_type, source_file, imported_at,
+                    created_at, title, url, content,
+                    author_handle, author_name, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record['id'],
+                record['source_type'],
+                record['source_file'],
+                record['imported_at'],
+                record['created_at'],
+                record['title'],
+                record['url'],
+                record['content'],
+                record['author_handle'],
+                record['author_name'],
+                record['metadata_json']
+            ))
+            new_count += 1
+        except sqlite3.IntegrityError:
+            # Duplicate ID (PRIMARY KEY constraint)
+            duplicate_count += 1
+
+    # Record import history
+    cursor.execute("""
+        INSERT INTO import_history (
+            source_file, source_type, imported_at,
+            bookmark_count, new_count, duplicate_count
+        ) VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        'onetab-dom',
+        'onetab',
+        datetime.now().isoformat(),
+        len(tabs_data),
+        new_count,
+        duplicate_count
+    ))
+
+    conn.commit()
+
+    return ImportStats(
+        total=len(tabs_data),
+        new=new_count,
+        duplicates=duplicate_count,
+        errors=errors
+    )
+
+
+def _transform_onetab_bookmark(tab: Dict) -> Dict:
+    """Transform OneTab tab dict to canonical schema.
+
+    Args:
+        tab: Tab dict from scrape_onetab()
+
+    Returns:
+        Dictionary with canonical bookmark fields
+
+    Raises:
+        KeyError: If required fields are missing
+        ValueError: If ID generation fails
+    """
+    from ubm.onetab_scraper import generate_onetab_id
+
+    url = tab['url']
+    title = tab['title']
+    group_date = tab['group_date']
+    group_index = tab['group_index']
+    tab_position = tab['tab_position']
+    scraped_at = tab['scraped_at']
+
+    # Generate stable ID from group_date + url
+    bookmark_id = generate_onetab_id(group_date, url)
+
+    # Build FTS content: title + group context
+    content = f"{title} {group_date}"
+
+    # Metadata JSON with group context
+    metadata = {
+        'group_date': group_date,
+        'group_index': group_index,
+        'tab_position': tab_position,
+        'scraped_at': scraped_at,
+    }
+
+    # Required fields (will raise KeyError if missing)
+    return {
+        'id': bookmark_id,
+        'source_type': 'onetab',
+        'source_file': 'onetab-dom',
+        'imported_at': datetime.now().isoformat(),
+        'created_at': group_date,  # OneTab save date
+        'title': title,
+        'url': url,
+        'content': content,
+        'author_handle': '',
+        'author_name': f"Group: {group_date}",
+        'metadata_json': json.dumps(metadata)
+    }
+
+
+def import_onetab(
+    conn: sqlite3.Connection,
+    dry_run: bool = False
+) -> ImportStats:
+    """Scrape OneTab DOM and import into database.
+
+    This is the main public API for OneTab imports. It scrapes the OneTab
+    extension, transforms the data, and inserts into the database.
+
+    Args:
+        conn: Database connection
+        dry_run: If True, parse but don't write to database
+
+    Returns:
+        ImportStats with count of total, new, and duplicate bookmarks
+
+    Raises:
+        ImportError: If playwright is not installed
+        Exception: Various exceptions from Playwright/Chrome
+    """
+    from ubm.onetab_scraper import scrape_onetab
+
+    tabs_data = scrape_onetab()
+    return _import_onetab_data(tabs_data, conn, dry_run)
+
+
 # Legacy public API - kept for backward compatibility
 def import_twitter_json(
     file_path: Path,

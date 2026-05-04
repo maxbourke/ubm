@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["playwright"]
 # ///
 
 """UBM - Universal Bookmarks Manager
@@ -47,6 +47,11 @@ def main():
     x_parser = subparsers.add_parser('x', help='Quick import: latest twitter-Bookmarks-*.json from ~/Downloads')
     x_parser.add_argument('--dry-run', action='store_true',
                           help='Preview import without writing to database')
+
+    # OneTab import command
+    onetab_parser = subparsers.add_parser('onetab', help='Import tabs from OneTab Chrome extension')
+    onetab_parser.add_argument('--dry-run', action='store_true',
+                              help='Preview import without writing to database')
 
     # Search command
     search_parser = subparsers.add_parser('search', help='Search bookmarks')
@@ -150,6 +155,8 @@ def main():
             cmd_import(conn, args)
         elif args.command == 'x':
             cmd_x(conn, args)
+        elif args.command == 'onetab':
+            cmd_onetab(conn, args)
         elif args.command == 'search':
             cmd_search(conn, args)
         elif args.command == 'list':
@@ -237,6 +244,28 @@ def cmd_x(conn, args):
         sys.exit(1)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_onetab(conn, args):
+    """Import tabs from OneTab Chrome extension."""
+    start_time = time.time()
+
+    try:
+        stats = importer.import_onetab(conn, dry_run=args.dry_run)
+        elapsed = time.time() - start_time
+
+        print(display.format_import_result(stats, 'onetab-dom', elapsed))
+
+        if stats.errors > 0:
+            print(f"\nWarning: {stats.errors} tab(s) had errors and were skipped",
+                  file=sys.stderr)
+
+    except ImportError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error scraping OneTab: {e}", file=sys.stderr)
         sys.exit(1)
 
 
