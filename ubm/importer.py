@@ -411,50 +411,56 @@ def _transform_onetab_bookmark(tab: Dict) -> Dict:
     """Transform OneTab tab dict to canonical schema.
 
     Args:
-        tab: Tab dict from scrape_onetab()
+        tab: Tab dict from scrape_onetab() — fields: url, title, onetab_id,
+             group_date, group_date_iso, group_label, group_index, tab_position,
+             scraped_at
 
     Returns:
         Dictionary with canonical bookmark fields
 
     Raises:
         KeyError: If required fields are missing
-        ValueError: If ID generation fails
     """
     from ubm.onetab_scraper import generate_onetab_id
 
     url = tab['url']
     title = tab['title']
-    group_date = tab['group_date']
+    onetab_id = tab.get('onetab_id', '')
+    group_date = tab.get('group_date', '')
+    group_date_iso = tab.get('group_date_iso', '')
+    group_label = tab.get('group_label', '')
     group_index = tab['group_index']
     tab_position = tab['tab_position']
-    scraped_at = tab['scraped_at']
+    scraped_at = tab.get('scraped_at', '')
 
-    # Generate stable ID from group_date + url
-    bookmark_id = generate_onetab_id(group_date, url)
+    # Use OneTab's own ID if available, otherwise hash
+    bookmark_id = generate_onetab_id(onetab_id, group_date_iso, url)
 
     # Build FTS content: title + group context
-    content = f"{title} {group_date}"
+    content = f"{title} {group_label} {group_date_iso}"
 
-    # Metadata JSON with group context
+    # Metadata JSON with full group context
     metadata = {
+        'onetab_id': onetab_id,
         'group_date': group_date,
+        'group_date_iso': group_date_iso,
+        'group_label': group_label,
         'group_index': group_index,
         'tab_position': tab_position,
         'scraped_at': scraped_at,
     }
 
-    # Required fields (will raise KeyError if missing)
     return {
         'id': bookmark_id,
         'source_type': 'onetab',
         'source_file': 'onetab-dom',
         'imported_at': datetime.now().isoformat(),
-        'created_at': group_date,  # OneTab save date
+        'created_at': group_date_iso,  # OneTab save date (ISO)
         'title': title,
         'url': url,
         'content': content,
         'author_handle': '',
-        'author_name': f"Group: {group_date}",
+        'author_name': f"Group: {group_label} ({group_date_iso})",
         'metadata_json': json.dumps(metadata)
     }
 
