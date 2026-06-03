@@ -13,6 +13,12 @@ A fast, agent friendly standalone CLI tool for searching and retrieving bookmark
 - **Source-Agnostic**: Designed to handle bookmarks from multiple platforms, currently only twitter-web-exporter module exists.
 - **AI-Powered Categorisation**: Automatically categorise bookmarks using LLMs (see [CATEGORISER.md](CATEGORISER.md)), this is a work in progress and your mileage may vary.
 
+## Standalone Instagram Work
+
+Additional Instagram saved-post tooling has been developed in parallel as a standalone subproject under [instagram-saved-sync](instagram-saved-sync/README.md). It is intentionally separate from the main UBM import/search flow for now while the acquisition model, rate limiting, local state, and collection-handling approach are still being worked out.
+
+The current expectation is that this Instagram work will later inform or integrate into UBM in some form, but it should still be treated as an experimental standalone layer rather than a finished UBM source module.
+
 ## Installation
 
 ```bash
@@ -388,6 +394,22 @@ Database: ~/.ubm/ubm.db (or $UBM_DB_PATH if set)
 
 - Python 3.11+
 - No external dependencies (uses built-in SQLite)
+
+## Related Tools
+
+### x-thread-getter
+
+A companion tool for fetching full tweet threads and X Articles from X.com as clean Markdown + JSON. Lives in `x-thread-getter/` within this repo.
+
+```bash
+x-thread-getter "https://x.com/user/status/123"        # save thread to Obsidian clippings
+x-thread-getter "https://x.com/i/article/123456789"    # fetch X Article
+x-thread-getter "https://x.com/user/status/123" --grok # Grok API fallback (~$0.02)
+```
+
+Uses Chrome session cookies (free) with Playwright for X Articles and a Grok API fallback. See [`x-thread-getter/README.md`](x-thread-getter/README.md) for full documentation, and the [design history & decisions note](~/Documents/mb%20Obsidian%20Vault/PROJECTS/CODING/X-Thread-Getter%20-%20Scraping%20X%20(twitter)%20posts%20and%20threads%20via%20logged%20in%20account.md) in Obsidian.
+
+---
 
 ## Licence
 
