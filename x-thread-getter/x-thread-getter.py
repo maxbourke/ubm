@@ -633,7 +633,6 @@ def build_output_free(url: str, thread: list[dict]) -> tuple[dict, str]:
         "  - clipping",
         "  - x-thread",
         "---",
-        "",
     ]
 
     for idx, tweet in enumerate(tweets_json):
@@ -641,15 +640,19 @@ def build_output_free(url: str, thread: list[dict]) -> tuple[dict, str]:
         name = tweet.get('author_name') or tweet.get('author', '')
         handle = tweet.get('author', '')
         ts = format_tweet_timestamp(tweet.get('created_at', ''))
+        tweet_id = tweet.get('id', '')
+        tweet_url = f"https://x.com/{handle}/status/{tweet_id}" if tweet_id else ""
+        ts_part = f"[{ts}]({tweet_url})" if (ts and tweet_url) else ts
         flags = []
         if tweet.get('is_note_tweet'):
             flags.append("Note Tweet")
         if tweet.get('is_retweet'):
             flags.append("Retweet")
         flag_str = f" *({', '.join(flags)})*" if flags else ""
-        header = f"**{name} (@{handle})**{flag_str} · {ts}" if ts else f"**{name} (@{handle})**{flag_str}"
-        md_lines.append("---")
-        md_lines.append("")
+        header = f"**{name} (@{handle})**{flag_str} · {ts_part}" if ts_part else f"**{name} (@{handle})**{flag_str}"
+        if idx > 0:
+            md_lines.append("---")
+            md_lines.append("")
         md_lines.append(header)
         md_lines.append("")
 
@@ -660,6 +663,9 @@ def build_output_free(url: str, thread: list[dict]) -> tuple[dict, str]:
                 print(f"  Fetching embedded X Article: {article_url}", file=sys.stderr)
                 try:
                     art_data = fetch_article_playwright(article_url)
+                    # Prefer the embedded article's headline for the filename slug
+                    if art_data.get('title') and not full.get('article_title'):
+                        full['article_title'] = art_data['title']
                     art_body = format_article_text(art_data['title'], art_data['author'], art_data['text'])
                     md_lines.append(f"**X Article: [{art_data['title']}]({article_url})**")
                     md_lines.append("")
@@ -825,12 +831,14 @@ def main():
 
     username = full["author"].lstrip("@")
     today = date.today().isoformat()
-    # For article-link tweets, the first tweet has no useful text — use the next one
-    slug_source = ""
-    for t in full["tweets"]:
-        if not t.get("is_article_link") and t.get("text"):
-            slug_source = t["text"]
-            break
+    # Prefer an embedded X Article headline (captured during article fetch);
+    # otherwise fall back to the first non-article tweet's text.
+    slug_source = full.get("article_title", "")
+    if not slug_source:
+        for t in full["tweets"]:
+            if not t.get("is_article_link") and t.get("text"):
+                slug_source = t["text"]
+                break
     slug = slugify(slug_source)
     base_name = f"{today} @{username} - {slug}"
 
